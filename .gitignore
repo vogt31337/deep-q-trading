@@ -36,3 +36,5 @@ telegramSettings.py
 *.zip
 
 
+q.weights
+.idea/

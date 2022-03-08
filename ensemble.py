@@ -4,7 +4,6 @@ import pandas as pd
 import numpy as np
 
 
-
 def full_ensemble(df):
     m1 = df.eq(1).all(axis=1)
 
@@ -17,12 +16,11 @@ def full_ensemble(df):
 
     return local_df
 
+
 def perc_ensemble(df, thr = 0.7):
     c1 = (df.eq(1).sum(1) / df.shape[1]).gt(thr)
     c2 = (df.eq(2).sum(1) / df.shape[1]).gt(thr)
     return pd.DataFrame(np.select([c1, c2], [1, 2], 0), index=df.index, columns=['ensemble'])
-
-
 
 
 def ensemble(numWalks,perc,type,numDel):
@@ -79,18 +77,15 @@ def ensemble(numWalks,perc,type,numDel):
         
         values.append([str(round(j,2)),str(round(rew,2)),str(round(pos,2)),str(round(neg,2)),str(round(doll,2)),str(round(cov/num,2)),(str(round(pos/cov,2)) if (cov>0) else "")])
         
-        dollSum+=doll
-        rewSum+=rew
-        posSum+=pos
-        negSum+=neg
-        covSum+=cov
-        numSum+=num
-
+        dollSum += doll
+        rewSum += rew
+        posSum += pos
+        negSum += neg
+        covSum += cov
+        numSum += num
 
     values.append(["sum",str(round(rewSum,2)),str(round(posSum,2)),str(round(negSum,2)),str(round(dollSum,2)),str(round(covSum/numSum,2)),(str(round(posSum/covSum,2)) if (covSum>0) else "")])
-    return values,columns
-
-
+    return values, columns
 
 
 def evaluate(csvname=""):

@@ -6,6 +6,7 @@
 #os.environ["CUDA_VISIBLE_DEVICES"]="0";
 
 #This is the class call for the Agent which will perform the experiment
+from tensorflow import keras
 from deepQTrading import DeepQTrading
 
 #Date library to manipulate time in the source code
@@ -41,7 +42,7 @@ import sys
 
 
 #Let's capture the starting time and send it to the destination in order to tell that the experiment started 
-startingTime=datetime.datetime.now()
+startingTime = datetime.datetime.now()
 
 #There are three actions possible in the stock market
 #Hold(id 0): do nothing.
@@ -60,8 +61,8 @@ isOnlyShort=sys.argv[2]==1
 #the input is 20 observation days from the past, 8 observations from the past week and 
 #40 observations from the past hours
 model = Sequential()
-model.add(Flatten(input_shape=(1,1,68)))
-model.add(Dense(35,activation='linear'))
+model.add(Flatten(input_shape=(1, 1, 68)))
+model.add(Dense(35, activation='linear'))
 model.add(LeakyReLU(alpha=.001))
 model.add(Dense(nb_actions))
 model.add(Activation('linear'))
@@ -80,13 +81,13 @@ model.add(Activation('linear'))
 #nOutput:number of walks
 dqt = DeepQTrading(
     model=model,
-    explorations=[(0.2,100)],
+    explorations=[(0.2, 100)],
     trainSize=datetime.timedelta(days=360*5),
     validationSize=datetime.timedelta(days=30*6),
     testSize=datetime.timedelta(days=30*6),
     outputFile="./Output/csv/walks/walks",
-    begin=datetime.datetime(2001,1,1,0,0,0,0),
-    end=datetime.datetime(2019,2,28,0,0,0,0),
+    begin=datetime.datetime(2001, 1, 1, 0, 0, 0, 0),
+    end=datetime.datetime(2019, 2, 28, 0, 0, 0, 0),
     nbActions=nb_actions,
     isOnlyShort=isOnlyShort,
     ensembleFolderName=sys.argv[3]
