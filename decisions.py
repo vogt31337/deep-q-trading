@@ -4,8 +4,12 @@ import pandas as pd
 import numpy as np
 
 
-# Compute the ensemble on columns (nets) with 100% agreement
 def full_ensemble(df):
+    """
+    Compute the ensemble on columns (nets) with 100% agreement
+    :param df:
+    :return:
+    """
     # Check rows with only 1
     m1 = df.eq(1).all(axis=1)
 
@@ -21,31 +25,37 @@ def full_ensemble(df):
 
     return local_df
 
-# Compute ensemble with any % of agreement
-def perc_ensemble(df, thr = 0.7):
+
+def perc_ensemble(df, thr=0.7):
+    """
+    Compute ensemble with any % of agreement
+    :param df:
+    :param thr:
+    :return:
+    """
     c1 = (df.eq(1).sum(1) / df.shape[1]).gt(thr)
     c2 = (df.eq(2).sum(1) / df.shape[1]).gt(thr)
     return pd.DataFrame(np.select([c1, c2], [1, -1], 0), index=df.index, columns=['ensemble'])
 
 
-numDel=0
-df=pd.read_csv("./Output/ensamble/walk0ensamble_test.csv",index_col='Date')
+if __name__ == '__main__':
+    numDel = 0
+    df = pd.read_csv("./Output/ensemble/results/walk0ensemble_test.csv", index_col='Date')
 
-fulldf=full_ensemble(df)
+    fulldf = full_ensemble(df)
 
-for j in range(0,5):
-    df=pd.read_csv("./Output/ensamble/walk"+str(j)+"ensamble_test.csv",index_col='Date')
+    for j in range(0, 5):
+        df = pd.read_csv("./Output/ensemble/results/walk"+str(j)+"ensemble_test.csv", index_col='Date')
 
-    for deleted in range(1,numDel):
-        del df['iteration'+str(deleted)]
+        for deleted in range(1, numDel):
+            del df['iteration'+str(deleted)]
 
-    fulldf=fulldf.append(full_ensemble(df))
+        fulldf = fulldf.append(full_ensemble(df))
 
+    fulldf.to_csv("resultEnsembleTest.csv")
+    fulldf = pd.read_csv("resultEnsembleTest.csv")
+    fulldf['Date'] = pd.to_datetime(fulldf['Date'])
+    fulldf = fulldf.set_index('Date')
+    print(fulldf.head())
 
-fulldf.to_csv("resultEnsembleTest.csv")
-fulldf=pd.read_csv("resultEnsembleTest.csv")
-fulldf['Date'] = pd.to_datetime(fulldf['Date'])
-fulldf = fulldf.set_index('Date')
-print(fulldf.head())
-
-fulldf.to_csv("spLong.csv")
+    fulldf.to_csv("spLong.csv")

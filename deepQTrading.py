@@ -1,46 +1,53 @@
 #Copyright (C) 2020 Salvatore Carta, Anselmo Ferreira, Alessandro Sebastian Podda, Diego Reforgiato Recupero, Antonio Sanna. All rights reserved.
 
-#Imports the SPEnv library, which will perform the Agent actions themselves
-from spEnv import SpEnv
-
-#Callback used to print the results at each episode
-from callback import ValidationCallback
-
-#Keras library for the NN considered
-from keras.models import Sequential
-
-#Keras libraries for layers, activations and optimizers used
-from keras.layers import Dense, Activation, Flatten
-from keras.layers.advanced_activations import LeakyReLU, PReLU
-from keras.optimizers import Adam
-
-#RL Agent 
-from rl.agents.dqn import DQNAgent
-from rl.memory import SequentialMemory
-from rl.policy import EpsGreedyQPolicy
-
-#Mathematical operations used later
+# Mathematical operations used later
 from math import floor
 
-#Library to manipulate the dataset in a csv file
+# Library to manipulate the dataset in a csv file
 import pandas as pd
 
-#Library used to manipulate time
+# Library used to manipulate time
 import datetime
 
+# Imports the SPEnv library, which will perform the Agent actions themselves
+from spEnv import SpEnv
 
-#Prefix of the name of the market (S&P500) files used to load the data
-MK="dax"
+# Callback used to print the results at each episode
+from callback import ValidationCallback
+
+try:
+    # Keras library for the NN considered
+    # from keras.models import Sequential
+
+    # Keras libraries for layers, activations and optimizers used
+    # from keras.layers import Dense, Activation, Flatten
+    # from keras.layers.advanced_activations import LeakyReLU, PReL
+    from keras.optimizers import Adam
+
+    # RL Agent
+    from rl.agents.dqn import DQNAgent
+    from rl.memory import SequentialMemory
+    from rl.policy import EpsGreedyQPolicy
+    TENSORFLOW = False
+except ImportError:
+    from tensorflow.keras.optimizers import Adam
+    from tf_agents.agents import DqnAgent
+    TENSORFLOW = True
+
+
+# Prefix of the name of the market (S&P500) files used to load the data
+# MK = "dax"
+MK = "sp500"
+
 
 class DeepQTrading:
-    
     def __init__(self, model, explorations, trainSize, validationSize, testSize, outputFile, begin, end, nbActions,
                  isOnlyShort, ensembleFolderName, operationCost=0):
-        '''
+        """
         Class constructor
         model: Keras model considered
         Explorations is a vector containing (i) probability of random predictions; (ii) how many epochs will be
-        runned by the algorithm (we run the algorithm several times-several iterations).
+        run by the algorithm (we run the algorithm several times-several iterations).
         nOutput is the number of walks. We are doing 5 walks.
 
         :param model:
@@ -55,31 +62,41 @@ class DeepQTrading:
         :param isOnlyShort:
         :param ensembleFolderName:
         :param operationCost: Price for the transaction (we set they are free)
-        '''
+        """
 
         self.isOnlyShort = isOnlyShort
         self.ensembleFolderName = ensembleFolderName
 
-        # Define the policy, explorations, actions and model as received by parameters
-        self.policy = EpsGreedyQPolicy()
+        # Define the explorations, actions and model as received by parameters
         self.explorations = explorations
         self.nbActions = nbActions
         self.model = model
 
-        # Define the memory
-        self.memory = SequentialMemory(limit=10000, window_length=1)
+        if TENSORFLOW:
+            raise NotImplementedError
+        else:
+            # Define the policy
+            self.policy = EpsGreedyQPolicy()
 
-        # Instantiate the agent with parameters received
-        self.agent = DQNAgent(model=self.model, policy=self.policy,  nb_actions=self.nbActions, memory=self.memory,
-                              nb_steps_warmup=200, target_model_update=1e-1, enable_double_dqn=True,
-                              enable_dueling_network=True)
-        
-        # Compile the agent with the adam optimizer and with the mean absolute error metric
-        self.agent.compile(Adam(lr=1e-3), metrics=['mae'])
+            # Define the memory
+            self.memory = SequentialMemory(limit=10000, window_length=1)
 
-        # Save the weights of the agents in the q.weights file
-        # Save random weights
-        self.agent.save_weights("q.weights", overwrite=True)
+            # Instantiate the agent with parameters received
+            self.agent = DQNAgent(model=self.model,
+                                  policy=self.policy,
+                                  nb_actions=self.nbActions,
+                                  memory=self.memory,
+                                  nb_steps_warmup=200,
+                                  target_model_update=1e-1,
+                                  enable_double_dqn=True,
+                                  enable_dueling_network=True)
+
+            # Compile the agent with the adam optimizer and with the mean absolute error metric
+            self.agent.compile(Adam(lr=1e-3), metrics=['mae'])
+
+            # Save the weights of the agents in the q.weights file
+            # Save random weights
+            self.agent.save_weights("q.weights", overwrite=True)
 
         # Define the current starting point as the initial date
         self.currentStartingPoint = begin
@@ -113,7 +130,8 @@ class DeepQTrading:
         # Drop Time and Date from the Dataset
         self.sp = self.sp.drop(['Time', 'Date'], axis=1)
 
-        # Just the index considering date and time will be important, because date and time will be used to define the train,
+        # Just the index considering date and time will be important,
+        # because date and time will be used to define the train,
         # validation and test for each walk
         self.sp = self.sp.index
 
@@ -128,22 +146,22 @@ class DeepQTrading:
         self.outputFileName = outputFile
 
     def run(self):
-        #Initiates the environments, 
-        trainEnv=validEnv=testEnv=" "
+        # Initiates the environments,
+        trainEnv = validEnv = testEnv = " "
         
-        iteration=-1
+        iteration = -1
 
-        #While we did not pass through all the dates (i.e., while all the walks were not finished)
-        #walk size is train+validation+test size
-        #currentStarting point begins with begin date
-        while(self.currentStartingPoint+self.walkSize <= self.endingPoint):
+        # While we did not pass through all the dates (i.e., while all the walks were not finished)
+        # walk size is train+validation+test size currentStarting point begins with begin date
+        while self.currentStartingPoint + self.walkSize <= self.endingPoint:
 
-            #Iteration is the current walk
-            iteration+=1
+            # Iteration is the current walk
+            iteration += 1
 
-            #Initiate the output file
-            self.outputFile=open(self.outputFileName+str(iteration+1)+".csv", "w+")
-            #write the first row of the csv
+            # Initiate the output file
+            self.outputFile = open(self.outputFileName+str(iteration+1)+".csv", "w+")
+
+            # write the first row of the csv
             self.outputFile.write(
                 "Iteration,"+
                 "trainAccuracy,"+
@@ -176,76 +194,84 @@ class DeepQTrading:
                 "testLongPrec,"+
                 "testShortPrec\n")
 
+            if TENSORFLOW:
+                raise NotImplementedError
+            else:
+                # Empty the memory and agent
+                del self.memory
+                del self.agent
 
-            
-            # Empty the memory and agent
-            del(self.memory)
-            del(self.agent)
+                # Define the memory and agent
+                # Memory is Sequential
+                self.memory = SequentialMemory(limit=10000, window_length=1)
+                # Agent is initiated as passed through parameters
+                self.agent = DQNAgent(model=self.model, policy=self.policy,  nb_actions=self.nbActions, memory=self.memory,
+                                      nb_steps_warmup=200, target_model_update=1e-1, enable_double_dqn=True,
+                                      enable_dueling_network=True)
 
-            # Define the memory and agent
-            # Memory is Sequential
-            self.memory = SequentialMemory(limit=10000, window_length=1)
-            # Agent is initiated as passed through parameters
-            self.agent = DQNAgent(model=self.model, policy=self.policy,  nb_actions=self.nbActions, memory=self.memory, nb_steps_warmup=200, target_model_update=1e-1,
-                                    enable_double_dqn=True,enable_dueling_network=True)
-            # Compile the agent with Adam initialization
-            self.agent.compile(Adam(lr=1e-3), metrics=['mae'])
+                # Compile the agent with Adam initialization
+                self.agent.compile(Adam(lr=1e-3), metrics=['mae'])
+
+                # Load the weights saved before in a random way if it is the first time
+                self.agent.load_weights("q.weights")
             
-            # Load the weights saved before in a random way if it is the first time
-            self.agent.load_weights("q.weights")
-            
-            ########################################TRAINING STAGE########################################################
-            
+            # ------------------------------------- TRAINING STAGE -------------------------------------
             # The TrainMinLimit will be loaded as the initial date at the beginning, and will be updated later.
             # If the initial date cannot be used, add 1 hour to the initial date and consider it the initial date
-            trainMinLimit=None
-            while(trainMinLimit is None):
+            trainMinLimit = None
+            while trainMinLimit is None:
                 try:
                     trainMinLimit = self.sp.get_loc(self.currentStartingPoint)
                 except:
-                    self.currentStartingPoint+=datetime.timedelta(0,0,0,0,0,1,0)
+                    self.currentStartingPoint += datetime.timedelta(hours=1)
 
             # The TrainMaxLimit will be loaded as the interval between the initial date plus the training size.
             # If the initial date cannot be used, add 1 hour to the initial date and consider it the initial date
-            trainMaxLimit=None
-            while(trainMaxLimit is None):
+            trainMaxLimit = None
+            while trainMaxLimit is None:
                 try:
-                    trainMaxLimit = self.sp.get_loc(self.currentStartingPoint+self.trainSize)
+                    trainMaxLimit = self.sp.get_loc(self.currentStartingPoint +
+                                                    self.trainSize)
                 except:
-                    self.currentStartingPoint+=datetime.timedelta(0,0,0,0,0,1,0)
+                    self.currentStartingPoint += datetime.timedelta(hours=1)
             
-            ########################################VALIDATION STAGE#######################################################
+            # ------------------------------------- VALIDATION STAGE -------------------------------------
             # The ValidMinLimit will be loaded as the next element of the TrainMax limit
-            validMinLimit=trainMaxLimit+1
+            validMinLimit = trainMaxLimit+1
 
             # The ValidMaxLimit will be loaded as the interval after the begin + train size +validation size
             # If the initial date cannot be used, add 1 hour to the initial date and consider it the initial date
-            validMaxLimit=None
-            while(validMaxLimit is None):
+            validMaxLimit = None
+            while validMaxLimit is None:
                 try:
-                    validMaxLimit = self.sp.get_loc(self.currentStartingPoint+self.trainSize+self.validationSize)
+                    validMaxLimit = self.sp.get_loc(self.currentStartingPoint +
+                                                    self.trainSize +
+                                                    self.validationSize)
                 except:
-                    self.currentStartingPoint+=datetime.timedelta(0,0,0,0,0,1,0)
+                    self.currentStartingPoint += datetime.timedelta(hours=1)
 
-            ########################################TESTING STAGE######################################################## 
+            # ------------------------------------- TESTING STAGE -------------------------------------
             # The TestMinLimit will be loaded as the next element of ValidMaxlimit
-            testMinLimit=validMaxLimit+1
+            testMinLimit = validMaxLimit+1
 
-            #The testMaxLimit will be loaded as the interval after the begin + train size +validation size + Testsize
-            #If the initial date cannot be used, add 1 hour to the initial date and consider it the initial date 
-            testMaxLimit=None
-            while(testMaxLimit is None):
+            # The testMaxLimit will be loaded as the interval after the begin + train size + validation size + Testsize
+            # If the initial date cannot be used, add 1 hour to the initial date and consider it the initial date
+            testMaxLimit = None
+            while testMaxLimit is None:
                 try:
-                    testMaxLimit = self.sp.get_loc(self.currentStartingPoint+self.trainSize+self.validationSize+self.testSize)
+                    testMaxLimit = self.sp.get_loc(self.currentStartingPoint +
+                                                   self.trainSize +
+                                                   self.validationSize +
+                                                   self.testSize)
                 except:
-                    self.currentStartingPoint+=datetime.timedelta(0,0,0,0,0,1,0)
+                    self.currentStartingPoint += datetime.timedelta(hours=1)
 
-            #Separate the Validation and testing data according to the limits found before
-            #Prepare the training and validation files for saving them later 
-            ensambleValid=pd.DataFrame(index=self.dates[validMinLimit:validMaxLimit].loc[:,'Date'].drop_duplicates().tolist())
-            ensambleTest=pd.DataFrame(index=self.dates[testMinLimit:testMaxLimit].loc[:,'Date'].drop_duplicates().tolist())
+            # Separate the Validation and testing data according to the limits found before
+            # Prepare the training and validation files for saving them later
+            ensambleValid = pd.DataFrame(index=self.dates[validMinLimit:validMaxLimit].loc[:, 'Date'].drop_duplicates().tolist())
+            ensambleTest = pd.DataFrame(index=self.dates[testMinLimit:testMaxLimit].loc[:, 'Date'].drop_duplicates().tolist())
             
-            #Put the name of the index for validation and testing
+            # Put the name of the index for validation and testing
             ensambleValid.index.name = 'Date'
             ensambleTest.index.name = 'Date'
             
@@ -258,54 +284,94 @@ class DeepQTrading:
                 # there will be 100 iterations (epochs), or eps[1])
                 for i in range(0, eps[1]):
                     
-                    del(trainEnv)
+                    del trainEnv
 
                     # Define the training, validation and testing environments with their respective callbacks
                     trainEnv = SpEnv(operationCost=self.operationCost, minLimit=trainMinLimit, maxLimit=trainMaxLimit,
                                      callback=self.trainer, isOnlyShort=self.isOnlyShort)
-                    del(validEnv)
+                    del validEnv
                     validEnv = SpEnv(operationCost=self.operationCost, minLimit=validMinLimit, maxLimit=validMaxLimit,
-                                     callback=self.validator, isOnlyShort=self.isOnlyShort, ensamble=ensambleValid,
+                                     callback=self.validator, isOnlyShort=self.isOnlyShort, ensemble=ensambleValid,
                                      columnName="iteration"+str(i))
-                    del(testEnv)
+                    del testEnv
                     testEnv = SpEnv(operationCost=self.operationCost, minLimit=testMinLimit, maxLimit=testMaxLimit,
-                                    callback=self.tester, isOnlyShort=self.isOnlyShort, ensamble=ensambleTest,
+                                    callback=self.tester, isOnlyShort=self.isOnlyShort, ensemble=ensambleTest,
                                     columnName="iteration"+str(i))
 
-                    #Reset the callback
+                    # Reset the callback
                     self.trainer.reset()
                     self.validator.reset()
                     self.tester.reset()
 
-                    #Reset the training environment
+                    # Reset the training environment
                     trainEnv.resetEnv()
-                    #Train the agent
-                    self.agent.fit(trainEnv, nb_steps=floor(self.trainSize.days-self.trainSize.days*0.2), visualize=False,verbose=0)
-                    #Get the info from the train callback
-                    (_, trainCoverage, trainAccuracy, trainReward, trainLongPerc,trainShortPerc,trainLongAcc,trainShortAcc,trainLongPrec,trainShortPrec)=self.trainer.getInfo()
-                    #Print Callback values on the screen
-                    print(str(i) + " TRAIN:  acc: " + str(trainAccuracy)+ " cov: " + str(trainCoverage)+ " rew: " + str(trainReward))
 
-                    #Reset the validation environment
+                    # Train the agent
+                    self.agent.fit(trainEnv,
+                                   nb_steps=floor(self.trainSize.days-self.trainSize.days*0.2),
+                                   visualize=False,
+                                   verbose=0)
+
+                    # Get the info from the train callback
+                    (_, trainCoverage, trainAccuracy, trainReward, trainLongPerc, trainShortPerc, trainLongAcc,
+                     trainShortAcc, trainLongPrec, trainShortPrec) = self.trainer.getInfo()
+
+                    # Print Callback values on the screen
+                    print(str(i) +
+                          " TRAIN:  acc: " +
+                          str(trainAccuracy) +
+                          " cov: " +
+                          str(trainCoverage) +
+                          " rew: " +
+                          str(trainReward))
+
+                    # Reset the validation environment
                     validEnv.resetEnv()
-                    #Test the agent on validation data
-                    self.agent.test(validEnv,nb_episodes=floor(self.validationSize.days-self.validationSize.days*0.2),visualize=False,verbose=0)
-                    #Get the info from the validation callback
-                    (_,validCoverage,validAccuracy,validReward,validLongPerc,validShortPerc,validLongAcc,validShortAcc,validLongPrec,validShortPrec)=self.validator.getInfo()
-                    #Print callback values on the screen
-                    print(str(i) + " VALID:  acc: " + str(validAccuracy)+ " cov: " + str(validCoverage)+ " rew: " + str(validReward))
 
-                    #Reset the testing environment
+                    # Test the agent on validation data
+                    self.agent.test(validEnv,
+                                    nb_episodes=floor(self.validationSize.days-self.validationSize.days*0.2),
+                                    visualize=False,
+                                    verbose=0)
+
+                    # Get the info from the validation callback
+                    (_, validCoverage, validAccuracy, validReward, validLongPerc, validShortPerc, validLongAcc,
+                     validShortAcc, validLongPrec, validShortPrec) = self.validator.getInfo()
+
+                    # Print callback values on the screen
+                    print(str(i) +
+                          " VALID:  acc: " +
+                          str(validAccuracy) +
+                          " cov: " +
+                          str(validCoverage) +
+                          " rew: " +
+                          str(validReward))
+
+                    # Reset the testing environment
                     testEnv.resetEnv()
-                    #Test the agent on testing data
-                    self.agent.test(testEnv,nb_episodes=floor(self.validationSize.days-self.validationSize.days*0.2),visualize=False,verbose=0)
-                    #Get the info from the testing callback
-                    (_,testCoverage,testAccuracy,testReward,testLongPerc,testShortPerc,testLongAcc,testShortAcc,testLongPrec,testShortPrec)=self.tester.getInfo()
-                    #Print callback values on the screen
-                    print(str(i) + " TEST:  acc: " + str(testAccuracy)+ " cov: " + str(testCoverage)+ " rew: " + str(testReward))
+
+                    # Test the agent on testing data
+                    self.agent.test(testEnv,
+                                    nb_episodes=floor(self.validationSize.days-self.validationSize.days*0.2),
+                                    visualize=False,
+                                    verbose=0)
+
+                    # Get the info from the testing callback
+                    (_, testCoverage, testAccuracy, testReward, testLongPerc, testShortPerc, testLongAcc, testShortAcc,
+                     testLongPrec, testShortPrec) = self.tester.getInfo()
+
+                    # Print callback values on the screen
+                    print(str(i) +
+                          " TEST:  acc: " +
+                          str(testAccuracy) +
+                          " cov: " +
+                          str(testCoverage) +
+                          " rew: " +
+                          str(testReward))
+
                     print(" ")
                     
-                    #write the walk data on the text file
+                    # write the walk data on the text file
                     self.outputFile.write(
                         str(i)+","+
                         str(trainAccuracy)+","+
@@ -348,8 +414,16 @@ class DeepQTrading:
 
             # Write validation and Testing data into files
             # Save the files for processing later with the ensemble considering the 100 epochs
-            ensambleValid.to_csv("./Output/ensemble/"+self.ensembleFolderName+"/walk"+str(iteration)+"ensemble_valid.csv")
-            ensambleTest.to_csv("./Output/ensemble/"+self.ensembleFolderName+"/walk"+str(iteration)+"ensemble_test.csv")
+            ensambleValid.to_csv("./Output/ensemble/" +
+                                 self.ensembleFolderName +
+                                 "/walk"+str(iteration) +
+                                 "ensemble_valid.csv")
+
+            ensambleTest.to_csv("./Output/ensemble/" +
+                                self.ensembleFolderName +
+                                "/walk" +
+                                str(iteration) +
+                                "ensemble_test.csv")
 
     # Function to end the Agent
     def end(self):
